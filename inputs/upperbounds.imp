@@ -1,0 +1,15 @@
+class upperbounds {
+
+	basic(x) {
+		def i = 0;
+		def y = 0;
+
+		while(i < x) {
+		    y = y * 2;
+			i = i + 1;
+		}
+
+	    return y;
+	}
+
+}
