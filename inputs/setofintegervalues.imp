@@ -1,0 +1,56 @@
+class setofintegervalues {
+	basic() {
+		def i = 2;
+		def j = -10;
+		def a = i + j;
+		def s = i - j;
+		def m = i * j;
+		def d = i / j;
+	}
+
+	severalvalues() {
+	    def i = 0;
+	    def j = 1;
+	    if(i > 1) {
+	        i = 1;
+	        j = 2;
+	    }
+	    if(i > 1) {
+        	        i = i+1;
+        	        j = j+2;
+        	    }
+
+	    if(i > 1) {
+        	        i = i+1;
+        	        j = j+2;
+        	    }
+	    if(i > 1) {
+        	        i = i+1;
+        	        j = j+2;
+        	    }
+	    if(i > 1) {
+        	        i = i+1;
+        	        j = j+2;
+        	    }
+	    if(i > 1) {
+        	        i = i+1;
+        	        j = j+2;
+        	    }
+        	   def a = i + j;
+
+    }
+
+    whilestatement() {
+        /*this does not converge
+        def i = 0;
+        while(i<123)
+          i = i + 1;*/
+    }
+
+	ifstatement() {
+	    def i = 0;
+	    if(i > 0)
+	        i = 1;
+	    def j = i * 0;
+	}
+}
