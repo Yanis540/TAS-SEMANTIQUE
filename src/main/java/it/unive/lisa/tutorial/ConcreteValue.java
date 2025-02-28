@@ -6,6 +6,9 @@ import it.unive.lisa.analysis.nonrelational.value.BaseNonRelationalValueDomain;
 import it.unive.lisa.program.cfg.ProgramPoint;
 import it.unive.lisa.symbolic.value.Constant;
 import it.unive.lisa.symbolic.value.operator.AdditionOperator;
+import it.unive.lisa.symbolic.value.operator.DivisionOperator;
+import it.unive.lisa.symbolic.value.operator.MultiplicationOperator;
+import it.unive.lisa.symbolic.value.operator.SubtractionOperator;
 import it.unive.lisa.symbolic.value.operator.binary.BinaryOperator;
 import it.unive.lisa.util.representation.StringRepresentation;
 import it.unive.lisa.util.representation.StructuredRepresentation;
@@ -57,6 +60,32 @@ public class ConcreteValue implements BaseNonRelationalValueDomain<ConcreteValue
                 return bottom();
             return new ConcreteValue(left.value + right.value);
         }
+        if(operator instanceof SubtractionOperator) {
+            if(left.isTop() || right.isTop())
+                return top();
+            if(left.isBottom() || right.isBottom())
+                return bottom();
+            return new ConcreteValue(left.value - right.value);
+        }
+        if(operator instanceof MultiplicationOperator) {
+            if(left.isTop() || right.isTop()) {
+                if(left.isTop() && right.value==0)
+                    return new ConcreteValue(0);
+                else if(right.isTop() && left.value==0)
+                    return new ConcreteValue(0);
+                else return top();
+            }
+            if(left.isBottom() || right.isBottom())
+                return bottom();
+            return new ConcreteValue(left.value * right.value);
+        }
+        if(operator instanceof DivisionOperator) {
+            if(left.isTop() || right.isTop())
+                return top();
+            if(left.isBottom() || right.isBottom())
+                return bottom();
+            return new ConcreteValue(left.value / right.value);
+        }            
         return BaseNonRelationalValueDomain.super.evalBinaryExpression(operator, left, right, pp, oracle);
     }
 }

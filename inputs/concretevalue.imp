@@ -1,25 +1,17 @@
 class concretevalue {
-
-
 	basic() {
-
-
 		def i = 2;
-
-
 		def j = -10;
-
-
 		def a = i + j;
-
-
 		def s = i - j;
-
-
 		def m = i * j;
-
-
 		def d = i / j;
+	}
+	ifstatement() {
+	    def i = 0;
+	    if(i > 0)
+	        i = 1;
+	    def j = i * 0;
 
 
 	}
