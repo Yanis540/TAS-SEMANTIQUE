@@ -78,7 +78,7 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
         }
         if(this == NEGATIVE && other == STRICTLY_NEGATIVE || this == STRICTLY_NEGATIVE && other == NEGATIVE) return NEGATIVE;
         if(this == POSITIVE && other == STRICTLY_POSITIVE || this == STRICTLY_POSITIVE && other == POSITIVE) return POSITIVE;
-        return BOTTOM;
+        return TOP;
     }
 
     @Override
@@ -94,6 +94,9 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
         return new StringRepresentation("?");
     }
 
+    public boolean isAtLeastPositive(ExtendedSigns other) {
+        return other == POSITIVE || other == STRICTLY_POSITIVE;
+    }
     @Override
     public ExtendedSigns evalNonNullConstant(Constant constant, ProgramPoint pp, SemanticOracle oracle) {
         if (constant.getValue() instanceof Integer) {
@@ -113,6 +116,12 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
         return this;
     }
 
+    public ExtendedSigns fromNumberToExtendedSigns(int number) {
+        if (number > 0) return STRICTLY_POSITIVE;
+        if (number == 0) return ZERO;
+        return STRICTLY_NEGATIVE;
+    }
+
     
 
     @Override
@@ -121,7 +130,43 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
         return arg;
     }
 
- 
+    public ExtendedSigns inverseLeftSign(ExtendedSigns left, ExtendedSigns right) {
+        if(left == STRICTLY_POSITIVE) 
+            return right == ZERO ? NEGATIVE : STRICTLY_NEGATIVE;
+        if(left == STRICTLY_NEGATIVE)
+            return right == ZERO ? POSITIVE : STRICTLY_NEGATIVE;
+        // todo continue with other cases 
+        return left.negate();
+    }
+    @Override
+    public ValueEnvironment<ExtendedSigns> assumeBinaryExpression(ValueEnvironment<ExtendedSigns> environment,
+			BinaryOperator operator,
+			ValueExpression left,
+			ValueExpression right,
+			ProgramPoint src,
+			ProgramPoint dest,
+			SemanticOracle oracle) throws SemanticException {
+
+        if(operator instanceof ComparisonLe){
+            if(left instanceof Variable && right instanceof Constant){
+                Variable x = (Variable) left;
+                Constant y = (Constant) right;
+                if(y.getValue() instanceof Integer){
+                    ExtendedSigns xValue = environment.getState(x);
+                    ExtendedSigns yValue = fromNumberToExtendedSigns((Integer) y.getValue());
+                    System.err.println("xValue: " + xValue.representation() + " yValue: " + yValue);
+                    if(xValue.isTop()) 
+                        return environment;
+                    System.err.println("Assuming x to be negative");
+                    // todo : compare if the two values, if it's negative or extremly positive you could assume it's one of them only
+                    // handle other cases 
+                    return environment.putState(x,inverseLeftSign(xValue, yValue));
+                }
+            }
+        }
+        return BaseNonRelationalValueDomain.super.assumeBinaryExpression(environment, operator, left, right, src, dest, oracle);
+    }
+
     @Override
     public ExtendedSigns evalBinaryExpression(BinaryOperator operator, ExtendedSigns left, ExtendedSigns right, ProgramPoint pp, SemanticOracle oracle) throws SemanticException {
         if (operator instanceof AdditionOperator) {
@@ -162,10 +207,10 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
         }
         if (operator instanceof DivisionOperator) {
             if (right == ZERO) return BOTTOM;
-            if (left == NEGATIVE) return TOP;
-            if (left == POSITIVE) return TOP;
             if(left == BOTTOM|| right == BOTTOM) return BOTTOM;
-            if (left == ZERO ) return ZERO;
+            if (left == ZERO) return ZERO;
+            if (left == NEGATIVE) return right.negate();
+            if (left == POSITIVE) return right;
             if (left == STRICTLY_NEGATIVE) return right.negate();
             if (left == STRICTLY_POSITIVE) return right;
             return TOP;

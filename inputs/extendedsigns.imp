@@ -27,4 +27,14 @@ class extendedsigns {
 		def y = x ;
 		def z = x /x ;
     }
+
+	
+	branch() {
+		def x = 1;
+		if (x > 0)
+           	x = x * 7;
+		else 
+			def z=x;
+		def y = x ;
+    }
 }
