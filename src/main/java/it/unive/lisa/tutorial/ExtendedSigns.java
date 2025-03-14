@@ -148,20 +148,15 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
 			SemanticOracle oracle) throws SemanticException {
 
         if(operator instanceof ComparisonLe){
-            if(left instanceof Variable && right instanceof Constant){
+            if(left instanceof Variable ){
                 Variable x = (Variable) left;
-                Constant y = (Constant) right;
-                if(y.getValue() instanceof Integer){
-                    ExtendedSigns xValue = environment.getState(x);
-                    ExtendedSigns yValue = fromNumberToExtendedSigns((Integer) y.getValue());
-                    System.err.println("xValue: " + xValue.representation() + " yValue: " + yValue);
-                    if(xValue.isTop()) 
-                        return environment;
-                    System.err.println("Assuming x to be negative");
-                    // todo : compare if the two values, if it's negative or extremly positive you could assume it's one of them only
-                    // handle other cases 
-                    return environment.putState(x,inverseLeftSign(xValue, yValue));
-                }
+                ExtendedSigns xValue = environment.getState(x);
+                ExtendedSigns yValue = eval(right,environment,src,oracle);
+                System.err.println("xValue: " + xValue.representation() + " yValue: " + yValue);
+                if(xValue.isTop()) 
+                    return environment;
+                System.err.println("Assuming x to be negative");
+                return environment.putState(x,inverseLeftSign(xValue, yValue));
             }
         }
         return BaseNonRelationalValueDomain.super.assumeBinaryExpression(environment, operator, left, right, src, dest, oracle);
@@ -206,7 +201,7 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
             return TOP;
         }
         if (operator instanceof DivisionOperator) {
-            if (right == ZERO) return BOTTOM;
+            if (right == ZERO || right== POSITIVE || right == NEGATIVE) return TOP;
             if(left == BOTTOM|| right == BOTTOM) return BOTTOM;
             if (left == ZERO) return ZERO;
             if (left == NEGATIVE) return right.negate();
