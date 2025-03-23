@@ -1,0 +1,17 @@
+class notequals {
+
+	basic(y) {
+	    def z = 0;
+	    if(z==y)
+	        z = y + 1;
+	}
+
+	basic2(x) {
+	    def y = x + 1;
+	    def k = y + 1;
+	    def z = y;
+	    x = 0;
+	    def v = z+1;
+	}
+
+}
