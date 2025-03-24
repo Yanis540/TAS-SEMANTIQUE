@@ -1,0 +1,30 @@
+class twovariablesinequality {
+       
+    basic_linear(){
+        def a = 1;
+        def b = 2;
+        def c = 5;
+        def x = 1;
+        def y = 1;
+        def d = (a*x + b*y)  < c;
+        if((3*x+2*y) < 3)
+            d = 1;
+        if((0*x+2*y) < 3)
+            d = 1;
+        if((1*x+0*y) < 3)
+            d = 2;
+        if((0*x+0*y) < 3)
+            d = 4;
+    }
+    basic_signs(){
+       	def i = 2;
+		def j = -10;
+		def a = i + j;
+		def s = i - j;
+		def m = i * j;
+		def d = i / j;
+		def e = i - (2*i);
+		def g = i / (-2*j);
+    }
+   
+}

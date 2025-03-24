@@ -1,40 +1,31 @@
 package it.unive.lisa.tutorial;
 
-import it.unive.lisa.analysis.ScopeToken;
-import it.unive.lisa.analysis.SemanticException;
-import it.unive.lisa.analysis.SemanticOracle;
-import it.unive.lisa.analysis.lattices.FunctionalLattice;
-import it.unive.lisa.analysis.lattices.InverseSetLattice;
-import it.unive.lisa.analysis.lattices.Satisfiability;
-import it.unive.lisa.analysis.nonrelational.Environment;
-import it.unive.lisa.analysis.nonrelational.NonRelationalDomain;
-import it.unive.lisa.analysis.nonrelational.value.BaseNonRelationalValueDomain;
-import it.unive.lisa.analysis.nonrelational.value.ValueEnvironment;
-import it.unive.lisa.analysis.value.ValueDomain;
-import it.unive.lisa.program.cfg.ProgramPoint;
-import it.unive.lisa.program.cfg.statement.comparison.Equal;
-import it.unive.lisa.program.cfg.statement.comparison.GreaterOrEqual;
-import it.unive.lisa.program.cfg.statement.comparison.GreaterThan;
-import it.unive.lisa.program.cfg.statement.comparison.LessOrEqual;
-import it.unive.lisa.program.cfg.statement.comparison.LessThan;
-import it.unive.lisa.symbolic.SymbolicExpression;
-import it.unive.lisa.symbolic.value.*;
-import it.unive.lisa.symbolic.value.operator.AdditionOperator;
-import it.unive.lisa.symbolic.value.operator.MultiplicationOperator;
-import it.unive.lisa.symbolic.value.operator.SubtractionOperator;
-import it.unive.lisa.symbolic.value.operator.binary.*;
-import it.unive.lisa.tutorial.NotEqualsDomain.SetOfIdentifiers;
-import it.unive.lisa.tutorial.StrictUpperBounds.IdSet;
-import it.unive.lisa.tutorial.TwoVariablesInequality.Inequality;
-import it.unive.lisa.util.representation.StringRepresentation;
-import it.unive.lisa.util.representation.StructuredRepresentation;
-
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
+
+import it.unive.lisa.analysis.ScopeToken;
+import it.unive.lisa.analysis.SemanticException;
+import it.unive.lisa.analysis.SemanticOracle;
+import it.unive.lisa.analysis.lattices.FunctionalLattice;
+import it.unive.lisa.analysis.lattices.InverseSetLattice;
+import it.unive.lisa.analysis.lattices.Satisfiability;
+import it.unive.lisa.analysis.value.ValueDomain;
+import it.unive.lisa.program.cfg.ProgramPoint;
+import it.unive.lisa.symbolic.SymbolicExpression;
+import it.unive.lisa.symbolic.value.BinaryExpression;
+import it.unive.lisa.symbolic.value.Constant;
+import it.unive.lisa.symbolic.value.Identifier;
+import it.unive.lisa.symbolic.value.UnaryExpression;
+import it.unive.lisa.symbolic.value.ValueExpression;
+import it.unive.lisa.symbolic.value.operator.AdditionOperator;
+import it.unive.lisa.symbolic.value.operator.MultiplicationOperator;
+import it.unive.lisa.symbolic.value.operator.binary.ComparisonLt;
+import it.unive.lisa.util.representation.StringRepresentation;
+import it.unive.lisa.util.representation.StructuredRepresentation;
 
 public class TwoVariablesInequality 	extends
 		// we reuse the value environment to simplify our implementation, but to do this we
@@ -316,7 +307,7 @@ public class TwoVariablesInequality 	extends
             SemanticOracle oracle) throws SemanticException {
         return this;
     }
-    private TwoVariablesInequality close() {
+    public TwoVariablesInequality close() {
         TwoVariablesInequality result = this;
         for(Identifier domain : this.getKeys())
             for(Identifier codomain : this.getState(domain)) {
