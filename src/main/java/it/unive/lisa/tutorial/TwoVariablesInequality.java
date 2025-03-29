@@ -24,171 +24,168 @@ import it.unive.lisa.symbolic.value.ValueExpression;
 import it.unive.lisa.symbolic.value.operator.AdditionOperator;
 import it.unive.lisa.symbolic.value.operator.MultiplicationOperator;
 import it.unive.lisa.symbolic.value.operator.binary.ComparisonLt;
+import it.unive.lisa.util.datastructures.regex.TopAtom;
 import it.unive.lisa.util.representation.StringRepresentation;
 import it.unive.lisa.util.representation.StructuredRepresentation;
 
-public class TwoVariablesInequality 	extends
+public class TwoVariablesInequality 	
 		// we reuse the value environment to simplify our implementation, but to do this we
 		// have to make IdSet an NRVD even if we do not need it
-		FunctionalLattice<TwoVariablesInequality, Identifier, TwoVariablesInequality.Inequality>
+		// FunctionalLattice<TwoVariablesInequality, Identifier, TwoVariablesInequality.Inequality>
 		// we make explicit that this is a value domain
 		implements ValueDomain<TwoVariablesInequality> {
-
-    public TwoVariablesInequality() {
-		super(new Inequality(Collections.emptySet()).top());
+    public static final TwoVariablesInequality TOP = new TwoVariablesInequality(true);
+    public static final TwoVariablesInequality BOTTOM = new TwoVariablesInequality(false);
+    public boolean top=false,bottom=false;
+    private TwoVariablesInequality(boolean top) {
+        if(top)
+            this.top = true;
+        else 
+            this.bottom = true;
+        this.inequalities = new HashSet<>();
+	}
+    public TwoVariablesInequality(Set<LinearInequality>inequalities) {
+        if(inequalities.isEmpty())
+            this.top = true;
+        this.inequalities = new HashSet<>(inequalities);
+         
 	}
 
-	public TwoVariablesInequality(Inequality lattice,Map<Identifier, Inequality> function) {
-		super(lattice, function);
-	}
-    @Override
+
     public TwoVariablesInequality top() {
-        return new TwoVariablesInequality(lattice.top(),null);
+        return TOP;
+    }
+    public boolean isTop(){
+        return this.top;
+    }
+    public boolean isBottom(){
+        return this.bottom;
     }
 
-    @Override
     public TwoVariablesInequality bottom() {
-        return new TwoVariablesInequality(lattice.bottom(),null);
+        return BOTTOM;
     }
 
-    @Override
-    public TwoVariablesInequality mk(Inequality lattice, Map<Identifier, Inequality> function) {
-        return new TwoVariablesInequality(lattice, function); 
-    }
-    
-    @Override
     public boolean knowsIdentifier(Identifier identifier) {
-        return this.lattice.contains(identifier);
+        // return this.lattice.contains(identifier);
+        return false; 
     }
-    @Override
     public TwoVariablesInequality forgetIdentifiersIf(Predicate<Identifier> predicate) throws SemanticException {
-         TwoVariablesInequality result = this;
-        for (Identifier id : this.getKeys()) {
-            if (predicate.test(id)) {
-                result = result.forgetIdentifier(id);
-            }
-        }
-        return result;
+        return this;
     }
-    public TwoVariablesInequality lubAux(TwoVariablesInequality other ){
-        if(other.isTop())
-            return this;
-        if(this.isTop())
-            return other;
-        if(this.isBottom())
-            return other;
-        if(other.isBottom())
-            return this;
-        TwoVariablesInequality result = this;
-        for(Identifier id : this.getKeys()) {
-            Inequality otherState = other.getState(id);
-            if(otherState.isTop())
-                result = result.putState(id, otherState);
-            else {
-                Inequality state = this.getState(id);
-                Set<LinearInequality> inequalities = new HashSet<>(state.inequalities);
-                inequalities.addAll(otherState.inequalities);
-                Set<Identifier> variables = new HashSet<>(state.var());
-                variables.addAll(otherState.var());
-                Inequality newState = new Inequality(variables, variables.isEmpty());
-                newState.setInequalities(inequalities);
-                result = result.putState(id, newState);
-            }
-        }
-        return result;
-    }
-    
-    @Override
     public TwoVariablesInequality pushScope(ScopeToken scopeToken) throws SemanticException {
         return this;
     }
-
-    @Override
     public TwoVariablesInequality popScope(ScopeToken scopeToken) throws SemanticException {
         return this;
     }
 
     public StructuredRepresentation representation() {
-        return new StringRepresentation(lattice.toString());
+        if(isTop())
+            return new StringRepresentation("TOP");
+        if(isBottom())
+            return new StringRepresentation("BOTTOM");
+        return new StringRepresentation(toString());
     }
-
-
+   
+    @Override
     public TwoVariablesInequality assume(
         ValueExpression expression,
         ProgramPoint src,
         ProgramPoint dest,
         SemanticOracle oracle) throws SemanticException {
-        if (!(expression instanceof BinaryExpression)&&(!(expression instanceof UnaryExpression)))
-			return this;
+        if (!(expression instanceof BinaryExpression))
+            return this;
+
+        
         BinaryExpression binaryExpression = (expression instanceof BinaryExpression)?(BinaryExpression) expression:(BinaryExpression)((UnaryExpression)expression).getExpression();
         if(!(binaryExpression.getOperator() instanceof ComparisonLt))
             return this;
             
         LinearInequality inequality = LinearInequality.toLinearInequality(binaryExpression);
-        Set<Identifier> variables = new HashSet<>(inequality.var());
-        Inequality newLattice = new Inequality(variables, variables.isEmpty());
-        if(!variables.isEmpty())
-            newLattice.setInequalities(Collections.singleton(inequality));
-        return new TwoVariablesInequality(newLattice, this.function); 
+        Set<LinearInequality> res = new HashSet<>(this.inequalities);
+        if(inequality!=null){
+            res.add(inequality);
+        }
+        System.out.println("Assuming: " + inequality.toString());
+        System.out.println("Having: " + toString());
+        // return bottom();
+        return new TwoVariablesInequality(res);
     }
     public TwoVariablesInequality smallStepSemantics(ValueExpression valueExpression, ProgramPoint programPoint, SemanticOracle semanticOracle) throws SemanticException {
         // Handle different types of expressions
         return this;
     }
-    
-    
-    public static class Inequality extends InverseSetLattice<Inequality, Identifier> {
-        public Set<LinearInequality> inequalities;
-        public Inequality(Set<Identifier> elements) {
-            super(elements, elements.isEmpty());
-            this.inequalities = new HashSet<>();
-        }
-        public void setInequalities(Set<LinearInequality> inequalities) {
-            this.inequalities = new HashSet<>(inequalities);
-        }
-        public Inequality(Set<Identifier> elements, boolean isTop) {
-            super(elements, isTop);
-            this.inequalities = new HashSet<>();
-        }
-        public Set<Identifier> var() {
-            Set<Identifier> result = new HashSet<>();
-            for (LinearInequality inequality : inequalities) {
-                result.addAll(inequality.var());
-            }
-            return result;
-        }
-         /**
-         * Implémente l'opérateur de restriction πY défini dans l'article
-         * πY(T) = {t ∈ T | var(t) ⊆ Y}
-         */
-        public Inequality restrictTo(Set<Identifier> variables) {
-            Set<LinearInequality> restricted = new HashSet<>();
-            for (LinearInequality inequality : inequalities) {
-                if (variables.containsAll(inequality.var())) {
-                    restricted.add(inequality);
-                }
-            }
-            var t = new Inequality(variables, restricted.isEmpty());
-            t.setInequalities(restricted);
-            return t;
-        }
-        @Override
-        public Inequality top() {
-            return new Inequality(Collections.emptySet(), true);
-        }
-
-        @Override
-        public Inequality bottom() {
-            return new Inequality(Collections.emptySet(), false);
-        }
-
-     
-        @Override
-        public Inequality mk(Set<Identifier> set) {
-            return new Inequality(set);
-        }
-        
+    @Override
+    public boolean lessOrEqual(TwoVariablesInequality other) throws SemanticException {
+        return false;
     }
+    @Override
+    public TwoVariablesInequality lub(TwoVariablesInequality other) throws SemanticException {
+        // union est l'intersection des deux ensembles 
+        if(isTop())
+            return other;
+        if(other.isTop())
+            return this;
+        if(isBottom())
+            return other;
+        if(other.isBottom())
+            return this;
+         // Créer un nouvel ensemble qui est l'union des deux ensembles d'inégalités
+        Set<LinearInequality> unionInequalities = new HashSet<>(this.inequalities);
+        unionInequalities.addAll(other.inequalities);
+        
+        return new TwoVariablesInequality(unionInequalities);
+    }
+    @Override
+    public TwoVariablesInequality glb(TwoVariablesInequality other) throws SemanticException {
+        if (isTop()) return other;
+        if (other.isTop()) return this;
+        if (isBottom() || other.isBottom()) return BOTTOM;
+        Set<LinearInequality> result = new HashSet<>(this.inequalities);
+        result.addAll(other.inequalities);
+        return new TwoVariablesInequality(result);
+    }
+
+    
+    public Set<Identifier> vars() {
+        Set<Identifier> result = new HashSet<>();
+        for (LinearInequality inequality : inequalities) {
+            result.addAll(inequality.var());
+        }
+        return result;
+    }
+    public String toString(){
+        StringBuilder sb = new StringBuilder();
+        sb.append("{");
+        boolean first = true;
+        
+        for(LinearInequality inequality : inequalities) {
+            if(!first)
+                sb.append(", ");
+            sb.append(inequality.toString());
+            first = false;
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+
+     /**
+     * Implémente l'opérateur de restriction πY défini dans l'article
+     * πY(T) = {t ∈ T | var(t) ⊆ Y}
+     */
+    public Set<LinearInequality> restrictTo(Set<Identifier> variables) {
+        Set<LinearInequality> restricted = new HashSet<>();
+        for (LinearInequality inequality : inequalities) {
+            if (variables.containsAll(inequality.var())) {
+                restricted.add(inequality);
+            }
+        }
+        return restricted;
+    }
+    public Set<LinearInequality> inequalities=new HashSet<>();
+
 
     /**
      * Classe représentant une inégalité linéaire ax + by ≤ c
@@ -283,8 +280,6 @@ public class TwoVariablesInequality 	extends
             
             for (Map.Entry<Identifier, Double> entry : coefficients.entrySet()) {
                 double coef = entry.getValue();
-                if (Math.abs(coef) < 0.0001) continue; // Ignorer les coefficients proches de 0
-                
                 if (!first && coef > 0) sb.append(" + ");
                 else if (!first) sb.append(" - ");
                 else if (coef < 0) sb.append("-");
@@ -297,52 +292,32 @@ public class TwoVariablesInequality 	extends
                 first = false;
             }
             
-            sb.append(" ≤ ").append(constant);
+            sb.append(" < ").append(constant);
             return sb.toString();
         }
     }
 
-    @Override
     public TwoVariablesInequality assign(Identifier identifier, ValueExpression valueExpression, ProgramPoint pp,
             SemanticOracle oracle) throws SemanticException {
         return this;
     }
     public TwoVariablesInequality close() {
         TwoVariablesInequality result = this;
-        for(Identifier domain : this.getKeys())
-            for(Identifier codomain : this.getState(domain)) {
-                Set<Identifier> value = new HashSet<>(result.getState(codomain).elements);
-                value.add(domain);
-                result = result.putState(codomain, new Inequality(value, false));
-            }
+       
         return result;
     }
-    @Override
     public TwoVariablesInequality forgetIdentifier(Identifier identifier) throws SemanticException {
         TwoVariablesInequality result = this;
-        if(result.getKeys().contains(identifier)) {
-            result=result.putState(identifier, new Inequality(Collections.emptySet(), true));
-        }
-        for(Identifier id : result.getKeys())
-            if(result.getState(id).elements.contains(identifier)) {
-                Set<Identifier> s = new HashSet<>(result.getState(id).elements);
-                s.remove(identifier);
-                result = result.putState(id, new Inequality(s, s.isEmpty()));
-            }
+        
         return result;
     }
 
-    @Override
     public Satisfiability satisfies(ValueExpression expression, ProgramPoint pp, SemanticOracle oracle)
             throws SemanticException {
         return Satisfiability.UNKNOWN;
     }
 
 
-    @Override
-    public Inequality stateOfUnknown(Identifier key) {
-        return top().lattice;
-    }
 
 
 }

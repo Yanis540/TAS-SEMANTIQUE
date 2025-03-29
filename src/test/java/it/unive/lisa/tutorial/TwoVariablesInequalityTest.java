@@ -31,7 +31,7 @@ public class TwoVariablesInequalityTest {
 
         conf.abstractState = DefaultConfiguration.simpleState(
                 new FieldSensitivePointBasedHeap(),
-                new TwoVariablesInequality().top(),
+                TwoVariablesInequality.TOP,
                 DefaultConfiguration.defaultTypeDomain());
 
         // we instantiate LiSA with our configuration

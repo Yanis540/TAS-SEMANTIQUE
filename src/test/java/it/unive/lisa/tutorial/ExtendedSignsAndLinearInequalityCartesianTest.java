@@ -30,7 +30,7 @@ public class ExtendedSignsAndLinearInequalityCartesianTest {
         conf.analysisGraphs = GraphType.HTML;
 
         // we specify the analysis that we want to execute
-        var twoVariablesInequality = new TwoVariablesInequality();
+        var twoVariablesInequality = TwoVariablesInequality.TOP;
         var extendedSigns = new ValueEnvironment<>(new ExtendedSigns());
         conf.abstractState = DefaultConfiguration.simpleState(
                 new FieldSensitivePointBasedHeap(),

@@ -7,15 +7,20 @@ class twovariablesinequality {
         def x = 1;
         def y = 1;
         def d = (a*x + b*y)  < c;
-        if((3*x+2*y) < 3)
+        if((3*x+2*y) < 3){
             d = 1;
-        if((0*x+2*y) < 3)
-            d = 1;
-        if((1*x+0*y) < 3)
-            d = 2;
-        if((0*x+0*y) < 3)
-            d = 4;
+            def z= 2;
+        }
+        else {
+
+            if(( 1*x + 2*y) < 3)
+                d=2;
+            def z=3;
+        }
+
+        
     }
+    /*
     nested(){
         def a = 1;
         def b = 2;
@@ -39,5 +44,5 @@ class twovariablesinequality {
         while((3*x+2*y) < 3){
            x= x+1;
         }
-    }
+    }*/
 }
