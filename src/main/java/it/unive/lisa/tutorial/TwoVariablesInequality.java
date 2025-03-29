@@ -29,10 +29,7 @@ import it.unive.lisa.util.representation.StringRepresentation;
 import it.unive.lisa.util.representation.StructuredRepresentation;
 
 public class TwoVariablesInequality 	
-		// we reuse the value environment to simplify our implementation, but to do this we
-		// have to make IdSet an NRVD even if we do not need it
-		// FunctionalLattice<TwoVariablesInequality, Identifier, TwoVariablesInequality.Inequality>
-		// we make explicit that this is a value domain
+		
 		implements ValueDomain<TwoVariablesInequality> {
     public static final TwoVariablesInequality TOP = new TwoVariablesInequality(true);
     public static final TwoVariablesInequality BOTTOM = new TwoVariablesInequality(false);
@@ -47,7 +44,7 @@ public class TwoVariablesInequality
     public TwoVariablesInequality(Set<LinearInequality>inequalities) {
         if(inequalities.isEmpty())
             this.top = true;
-        this.inequalities = new HashSet<>(inequalities);
+        this.inequalities = new HashSet<>(removeDuplicates(inequalities));
          
 	}
 
@@ -67,7 +64,6 @@ public class TwoVariablesInequality
     }
 
     public boolean knowsIdentifier(Identifier identifier) {
-        // return this.lattice.contains(identifier);
         return false; 
     }
     public TwoVariablesInequality forgetIdentifiersIf(Predicate<Identifier> predicate) throws SemanticException {
@@ -102,7 +98,7 @@ public class TwoVariablesInequality
         if(!(binaryExpression.getOperator() instanceof ComparisonLt))
             return this;
             
-        LinearInequality inequality = LinearInequality.toLinearInequality(binaryExpression);
+        LinearInequality inequality = LinearInequality.fromBinaryExpression(binaryExpression);
         Set<LinearInequality> res = new HashSet<>(this.inequalities);
         if(inequality!=null){
             res.add(inequality);
@@ -110,7 +106,25 @@ public class TwoVariablesInequality
         System.out.println("Assuming: " + inequality.toString());
         System.out.println("Having: " + toString());
         // return bottom();
-        return new TwoVariablesInequality(res);
+        return new TwoVariablesInequality(removeDuplicates(res));
+    }
+
+    public Set<LinearInequality> removeDuplicates(Set<LinearInequality> inequalities) {
+        // GO TRHOW the inequalities and remove the equivalent ones 
+        Set<LinearInequality> result = new HashSet<>();
+        for (LinearInequality inequality : inequalities) {
+            boolean isEquivalent = false;
+            for (LinearInequality existingInequality : result) {
+                if (inequality.equals(existingInequality)) {
+                    isEquivalent = true;
+                    break;
+                }
+            }
+            if (!isEquivalent) {
+                result.add(inequality);
+            }
+        }
+        return result;
     }
     public TwoVariablesInequality smallStepSemantics(ValueExpression valueExpression, ProgramPoint programPoint, SemanticOracle semanticOracle) throws SemanticException {
         // Handle different types of expressions
@@ -192,13 +206,17 @@ public class TwoVariablesInequality
     */
     public static class LinearInequality {
         // Coefficients des variables (ax + by)
-        private Map<Identifier, Double> coefficients;
+        public Map<Identifier, Double> coefficients;
+        public boolean lessOrEqual = false;
         // Constante c dans ax + by ≤ c
         private double constant;
 
         public LinearInequality(Map<Identifier, Double> coefficients, double constant) {
             this.coefficients = new HashMap<>(coefficients);
             this.constant = constant;
+        }
+        public void setLessOrEqual(boolean lessOrEqual) {
+            this.lessOrEqual = lessOrEqual;
         }
 
         /**
@@ -213,10 +231,14 @@ public class TwoVariablesInequality
             }
             return result;
         }
+        public boolean equals(LinearInequality other) {
+            if (this == other) return true;
+            return coefficients.equals(other.coefficients) && constant == other.constant;
+        }
         /**
          * Convertit une expression de comparaison en inégalité linéaire
          */
-        public static LinearInequality toLinearInequality(BinaryExpression comparison) throws SemanticException {
+        public static LinearInequality fromBinaryExpression(BinaryExpression comparison) throws SemanticException {
             // Par défaut, on suppose que la forme est left OP right
             // On veut normaliser en ax + by ≤ c
             if(!(comparison.getOperator() instanceof ComparisonLt))
