@@ -23,7 +23,7 @@ import it.unive.lisa.symbolic.value.UnaryExpression;
 import it.unive.lisa.symbolic.value.ValueExpression;
 import it.unive.lisa.symbolic.value.operator.AdditionOperator;
 import it.unive.lisa.symbolic.value.operator.MultiplicationOperator;
-import it.unive.lisa.symbolic.value.operator.binary.ComparisonLt;
+import it.unive.lisa.symbolic.value.operator.binary.ComparisonLe;
 import it.unive.lisa.util.datastructures.regex.TopAtom;
 import it.unive.lisa.util.representation.StringRepresentation;
 import it.unive.lisa.util.representation.StructuredRepresentation;
@@ -93,20 +93,130 @@ public class TwoVariablesInequality
         if (!(expression instanceof BinaryExpression))
             return this;
 
-        
-        BinaryExpression binaryExpression = (expression instanceof BinaryExpression)?(BinaryExpression) expression:(BinaryExpression)((UnaryExpression)expression).getExpression();
-        if(!(binaryExpression.getOperator() instanceof ComparisonLt))
+        // todo handle ! (<=)
+        BinaryExpression binaryExpression = (BinaryExpression) expression;
+        if(!(binaryExpression.getOperator() instanceof ComparisonLe))
             return this;
-            
-        LinearInequality inequality = LinearInequality.fromBinaryExpression(binaryExpression);
-        Set<LinearInequality> res = new HashSet<>(this.inequalities);
-        if(inequality!=null){
-            res.add(inequality);
+        SymbolicExpression left = binaryExpression.getLeft();
+        SymbolicExpression right = binaryExpression.getRight();
+        
+        // Extraire les coefficients et constantes
+        Map<Identifier, Double> coefficients = new HashMap<>();
+        double constant = 0.0;
+        if(left instanceof Identifier  && right instanceof Identifier){
+            // On veut que la forme soit x <= y => soit transformé vers 
+            // create the form for  x - y <= 0
+            Identifier x = (Identifier) left;
+            Identifier y = (Identifier) right;
+            coefficients.put(x, 1.0);
+            coefficients.put(y, -1.0);
+            LinearInequality inequality = new LinearInequality(coefficients, constant);
+            Set<LinearInequality> res = new HashSet<>(this.inequalities);
+            if(inequality!=null){
+                res.add(inequality);
+            }
+            System.out.println("Assuming: " + inequality.toString());
+            System.out.println("Having: " + toString());
+            return new TwoVariablesInequality(res);
         }
-        System.out.println("Assuming: " + inequality.toString());
-        System.out.println("Having: " + toString());
-        // return bottom();
-        return new TwoVariablesInequality(removeDuplicates(res));
+        // extract a, x and b from left and c from left 
+        if (left instanceof BinaryExpression && right instanceof Constant) {
+            constant = ((Integer)((Constant) right).getValue());
+            BinaryExpression leftExpr = (BinaryExpression) left;
+            if (leftExpr.getOperator() instanceof AdditionOperator && leftExpr.getLeft() instanceof BinaryExpression && leftExpr.getRight() instanceof BinaryExpression) {
+                // try extract a and b, x and y
+                SymbolicExpression ax = leftExpr.getLeft();
+                SymbolicExpression by = leftExpr.getRight();
+                BinaryExpression axExpr = (BinaryExpression) ax;
+                BinaryExpression byExpr = (BinaryExpression) by;
+                if(axExpr.getOperator() instanceof MultiplicationOperator && byExpr.getOperator() instanceof MultiplicationOperator && axExpr.getLeft() instanceof Constant && axExpr.getRight() instanceof Identifier) {
+                    SymbolicExpression a = axExpr.getLeft();
+                    SymbolicExpression x = axExpr.getRight();
+                    SymbolicExpression b = byExpr.getLeft();
+                    SymbolicExpression y = byExpr.getRight();
+                    coefficients.put((Identifier) y, ((Integer)((Constant) b).getValue()).doubleValue());
+                    coefficients.put((Identifier) x, ((Integer)((Constant) a).getValue()).doubleValue());
+                    LinearInequality inequality = new LinearInequality(coefficients, constant);
+                    Set<LinearInequality> res = new HashSet<>(this.inequalities);
+                    if(inequality!=null){
+                        res.add(inequality);
+                    }
+                    System.out.println("Assuming: " + inequality.toString());
+                    System.out.println("Having: " + toString());
+                    // return bottom();
+                    return new TwoVariablesInequality(res);
+                } 
+                
+                
+            }
+        }
+        return this; 
+    }
+    public static boolean isHeapIdentifier(Identifier id) {
+        return id.toString().contains("heap") || id.toString().contains("this") || id.toString().contains("&pp@");
+    }
+
+    public TwoVariablesInequality assign(Identifier identifier, ValueExpression valueExpression, ProgramPoint pp,
+        SemanticOracle oracle) throws SemanticException {
+        if(isHeapIdentifier(identifier))
+            return this;
+        if(valueExpression instanceof Identifier){
+            Identifier id = (Identifier) valueExpression;
+            Map<Identifier, Double> coefficients = new HashMap<>();
+            coefficients.put(identifier, 1.0);
+            coefficients.put(id, -1.0);
+            LinearInequality inequality = new LinearInequality(coefficients, 0.0);
+            Set<LinearInequality> res = new HashSet<>(this.inequalities);
+            res.add(inequality);
+            System.out.println("Assigning: " + inequality.toString());
+            System.out.println("Having: " + toString());
+            return new TwoVariablesInequality(res);
+        }
+        if(valueExpression instanceof BinaryExpression){
+            BinaryExpression binaryExpression = (BinaryExpression) valueExpression;
+            // On veut que la forme soit x = y + c 
+            if(binaryExpression.getOperator() instanceof AdditionOperator && binaryExpression.getLeft() instanceof Identifier && binaryExpression.getRight() instanceof Constant){
+                // On veut que la forme soit x = y + c => soit transformé vers 
+                // create the form for  x - y <= c
+                Identifier y = (Identifier) binaryExpression.getLeft();
+                Constant c = (Constant) binaryExpression.getRight();
+                Map<Identifier, Double> coefficients = new HashMap<>();
+                coefficients.put(identifier, 1.0);
+                coefficients.put(y, -1.0);
+                LinearInequality inequality = new LinearInequality(coefficients, (Integer)(c.getValue()));
+                Set<LinearInequality> res = new HashSet<>(this.inequalities);
+                res.add(inequality);
+                System.out.println("Assigning: " + inequality.toString());
+                System.out.println("Having: " + toString());
+                return new TwoVariablesInequality(res);
+            }
+            // handle the case of x = b*y + c
+            if(binaryExpression.getOperator() instanceof AdditionOperator &&  binaryExpression.getRight() instanceof Constant){
+                if((binaryExpression.getLeft() instanceof BinaryExpression)){
+                    BinaryExpression leftExpr = (BinaryExpression) binaryExpression.getLeft();
+                    if((leftExpr.getOperator() instanceof MultiplicationOperator) && leftExpr.getLeft() instanceof Constant && leftExpr.getRight() instanceof Identifier){
+                        // On veut que la forme soit x = b*y + c => soit transformé vers 
+                        // create the form for  x - b*y <= c
+                        Constant b = (Constant) leftExpr.getLeft();
+                        Identifier y = (Identifier) leftExpr.getRight();
+                        Constant c = (Constant) binaryExpression.getRight();
+                        Map<Identifier, Double> coefficients = new HashMap<>();
+                        coefficients.put(identifier, 1.0);
+                        coefficients.put(y, -((Integer)b.getValue()).doubleValue());
+                        LinearInequality inequality = new LinearInequality(coefficients, (Integer)(c.getValue()));
+                        Set<LinearInequality> res = new HashSet<>(this.inequalities);
+                        res.add(inequality);
+                        System.out.println("Assigning: " + inequality.toString());
+                        System.out.println("Having: " + toString());
+                        return new TwoVariablesInequality(res);
+                    }
+                }
+                
+                
+            
+            }
+        }
+        return this;
     }
 
     public Set<LinearInequality> removeDuplicates(Set<LinearInequality> inequalities) {
@@ -207,7 +317,7 @@ public class TwoVariablesInequality
     public static class LinearInequality {
         // Coefficients des variables (ax + by)
         public Map<Identifier, Double> coefficients;
-        public boolean lessOrEqual = false;
+        public boolean lessOrEqual = true;
         // Constante c dans ax + by ≤ c
         private double constant;
 
@@ -235,65 +345,7 @@ public class TwoVariablesInequality
             if (this == other) return true;
             return coefficients.equals(other.coefficients) && constant == other.constant;
         }
-        /**
-         * Convertit une expression de comparaison en inégalité linéaire
-         */
-        public static LinearInequality fromBinaryExpression(BinaryExpression comparison) throws SemanticException {
-            // Par défaut, on suppose que la forme est left OP right
-            // On veut normaliser en ax + by ≤ c
-            if(!(comparison.getOperator() instanceof ComparisonLt))
-                throw new SemanticException("Unsupported expression: " + comparison);
-
-            SymbolicExpression left = comparison.getLeft();
-            SymbolicExpression right = comparison.getRight();
-            
-            // Extraire les coefficients et constantes
-            Map<Identifier, Double> coefficients = new HashMap<>();
-            double constant = 0.0;
-            if(right instanceof Constant) {
-                // On veut que la constante soit à droite
-               constant = ((Integer)((Constant) right).getValue());
-            }
-            // extract a, x and b from left and c from left 
-            if (left instanceof BinaryExpression) {
-                BinaryExpression leftExpr = (BinaryExpression) left;
-                if (leftExpr.getOperator() instanceof AdditionOperator) {
-                    // try extract a and b, x and y
-                    SymbolicExpression ax = leftExpr.getLeft();
-                    SymbolicExpression by = leftExpr.getRight();
-                    if(ax instanceof BinaryExpression ){
-                        BinaryExpression axExpr = (BinaryExpression) ax;
-                        if(axExpr.getOperator() instanceof MultiplicationOperator) {
-                            SymbolicExpression a = axExpr.getLeft();
-                            SymbolicExpression x = axExpr.getRight();
-                            if(a instanceof Constant && x instanceof Identifier) {
-                                coefficients.put((Identifier) x, ((Integer)((Constant) a).getValue()).doubleValue());
-                            } else {
-                                throw new SemanticException("Unsupported expression: " + ax);
-                            }
-                        } else {
-                            throw new SemanticException("Unsupported expression: " + ax);
-                        }
-                    }
-                    if(by instanceof BinaryExpression ){
-                        BinaryExpression byExpr = (BinaryExpression) by;
-                        if(byExpr.getOperator() instanceof MultiplicationOperator) {
-                            SymbolicExpression b = byExpr.getLeft();
-                            SymbolicExpression y = byExpr.getRight();
-                            if(b instanceof Constant && y instanceof Identifier) {
-                                coefficients.put((Identifier) y, ((Integer)((Constant) b).getValue()).doubleValue());
-                            } else {
-                                throw new SemanticException("Unsupported expression: " + by);
-                            }
-                        } else {
-                            throw new SemanticException("Unsupported expression: " + by);
-                        }
-                    }
-                    
-                }
-            }
-            return new LinearInequality(coefficients, constant);
-        }
+     
 
         @Override
         public String toString() {
@@ -313,16 +365,16 @@ public class TwoVariablesInequality
                 sb.append(entry.getKey().getName());
                 first = false;
             }
-            
-            sb.append(" < ").append(constant);
+            if(lessOrEqual)
+                sb.append(" <= ");
+            else
+                sb.append(" < ");
+            sb.append(constant);
             return sb.toString();
         }
     }
 
-    public TwoVariablesInequality assign(Identifier identifier, ValueExpression valueExpression, ProgramPoint pp,
-            SemanticOracle oracle) throws SemanticException {
-        return this;
-    }
+
     public TwoVariablesInequality close() {
         TwoVariablesInequality result = this;
        
