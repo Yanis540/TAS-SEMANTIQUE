@@ -44,8 +44,7 @@ public class TwoVariablesInequality
     public TwoVariablesInequality(Set<LinearInequality>inequalities) {
         if(inequalities.isEmpty())
             this.top = true;
-        this.inequalities = new HashSet<>(removeDuplicates(inequalities));
-         
+        this.inequalities = inequalities;
 	}
 
 
@@ -152,13 +151,13 @@ public class TwoVariablesInequality
         }
         return this; 
     }
-    public static boolean isHeapIdentifier(Identifier id) {
+    public static boolean isSpecialIdentifier(Identifier id) {
         return id.toString().contains("heap") || id.toString().contains("this") || id.toString().contains("&pp@");
     }
 
     public TwoVariablesInequality assign(Identifier identifier, ValueExpression valueExpression, ProgramPoint pp,
         SemanticOracle oracle) throws SemanticException {
-        if(isHeapIdentifier(identifier))
+        if(isSpecialIdentifier(identifier))
             return this;
         if(valueExpression instanceof Identifier){
             Identifier id = (Identifier) valueExpression;
@@ -188,7 +187,7 @@ public class TwoVariablesInequality
                 res.add(inequality);
                 System.out.println("Assigning: " + inequality.toString());
                 System.out.println("Having: " + toString());
-                return new TwoVariablesInequality(res);
+                return new TwoVariablesInequality(closure(removeDuplicates(res)));
             }
             // handle the case of x = b*y + c
             if(binaryExpression.getOperator() instanceof AdditionOperator &&  binaryExpression.getRight() instanceof Constant){
@@ -208,7 +207,7 @@ public class TwoVariablesInequality
                         res.add(inequality);
                         System.out.println("Assigning: " + inequality.toString());
                         System.out.println("Having: " + toString());
-                        return new TwoVariablesInequality(res);
+                        return new TwoVariablesInequality(closure(removeDuplicates(res)));
                     }
                 }
                 
@@ -236,6 +235,132 @@ public class TwoVariablesInequality
         }
         return result;
     }
+    public Set<LinearInequality> closure(Set<LinearInequality> inequalities) {
+        // Copier les inégalités initiales dans le résultat
+        Set<LinearInequality> result = new HashSet<>(inequalities);
+        // Étape 1: Supprimer les inégalités redondantes (même coefficient, constante différente)
+        result = lubLinearInequality(inequalities); 
+        // Étape 2: Appliquer la transitivité pour générer de nouvelles inégalités
+        Set<LinearInequality> newInequalities = transitivity(result);
+        // Ajouter les nouvelles inégalités au résultat
+        result.addAll(newInequalities);
+        // Étape 3: Nettoyer à nouveau les redondances après l'ajout des nouvelles inégalités
+        result = lubLinearInequality(result);
+        return result;
+    }
+    public Set<LinearInequality> closureGlb(Set<LinearInequality> inequalities) {
+        Set<LinearInequality> result = new HashSet<>(inequalities);
+        result = glbLinearInequality(inequalities); 
+        Set<LinearInequality> newInequalities = transitivity(result);
+        result.addAll(newInequalities);
+        result = glbLinearInequality(result);
+        return result;
+    }
+    public Set<LinearInequality> transitivity(Set<LinearInequality> inequalities) {
+        // Copier les inégalités initiales dans le résultat
+        Set<LinearInequality> newInequalities = new HashSet<>();
+        for (LinearInequality ineq1 : inequalities) {
+            for (LinearInequality ineq2 : inequalities) {
+                if (ineq1.equals(ineq2)) continue;
+                // Trouver des variables communes entre les deux inégalités
+                Set<Identifier> commonVars = new HashSet<>(ineq1.var());
+                commonVars.retainAll(ineq2.var());
+                if (!commonVars.isEmpty()) {
+                    // Pour chaque variable commune, essayer de dériver une nouvelle inégalité
+                    for (Identifier commonVar : commonVars) {
+                        Double coef1 = ineq1.coefficients.get(commonVar);
+                        Double coef2 = ineq2.coefficients.get(commonVar);
+                        boolean hasSameCoefficient = Math.abs(coef1)==Math.abs(coef2); 
+                        boolean hasDifferentSign = coef1 * coef2 < 0;
+                        // Vérifier si les coefficients ont le même signe
+                        if (hasSameCoefficient &&hasDifferentSign ) {
+                            // Créer une nouvelle inégalité combinée
+                            Map<Identifier, Double> newCoeffs = new HashMap<>();
+                            double scale1 = Math.abs(coef2);
+                            double scale2 = Math.abs(coef1);
+                            // Ajouter les coefficients mis à l'échelle de la première inégalité
+                            for (Map.Entry<Identifier, Double> entry : ineq1.coefficients.entrySet()) {
+                                Identifier var = entry.getKey();
+                                if (!var.equals(commonVar)) {
+                                    newCoeffs.put(var, entry.getValue() * scale1);
+                                }
+                            }
+                            // Ajouter les coefficients mis à l'échelle de la seconde inégalité
+                            for (Map.Entry<Identifier, Double> entry : ineq2.coefficients.entrySet()) {
+                                Identifier var = entry.getKey();
+                                if (!var.equals(commonVar)) {
+                                    double existingCoef = newCoeffs.getOrDefault(var, 0.0);
+                                    newCoeffs.put(var, existingCoef + entry.getValue() * scale2);
+                                }
+                            }
+                            
+                            // Calculer la nouvelle constante
+                            double newConstant = ineq1.constant * scale1 + ineq2.constant * scale2;
+                            
+                            // Créer la nouvelle inégalité et l'ajouter aux résultats
+                            LinearInequality newIneq = new LinearInequality(newCoeffs, newConstant);
+                            newInequalities.add(newIneq);
+                        }
+                    }
+                }
+            }
+        }
+        return newInequalities;
+       
+    }
+    /*
+     * 
+     * * Implémente l'opérateur de jointure lub pour les inégalités linaires 
+     * e.g: ax + by <= c et ax + by <= d => ax + by <= min(c,d) e.g : 
+     */
+    public Set<LinearInequality> lubLinearInequality(Set<LinearInequality> inequalities) {
+        // Copier les inégalités initiales dans le résultat
+        Set<LinearInequality> result = new HashSet<>(inequalities);
+        // Étape 1: Supprimer les inégalités redondantes (même coefficient, constante différente)
+        Map<String, LinearInequality> coeffToIneq = new HashMap<>();
+        // Regrouper par coefficients et garder seulement l'inégalité la plus restrictive
+        // exemple si tu sais que x <= 5 et x <= 10, tu gardes x <= 5 
+        for (LinearInequality ineq : result) {
+            // Créer une clé représentant la structure des coefficients
+            StringBuilder keyBuilder = new StringBuilder();
+            for (Map.Entry<Identifier, Double> entry : ineq.coefficients.entrySet()) {
+                keyBuilder.append(entry.getKey().getName())
+                        .append(":")
+                        .append(entry.getValue())
+                        .append(";");
+            }
+            String key = keyBuilder.toString();
+            // Conserver seulement l'inégalité avec la plus grande constante
+            if (!coeffToIneq.containsKey(key) || coeffToIneq.get(key).constant > ineq.constant) {
+                coeffToIneq.put(key, ineq);
+            }
+        }
+        return new HashSet<>(coeffToIneq.values());
+    }
+    public Set<LinearInequality> glbLinearInequality(Set<LinearInequality> inequalities) {
+        // Copier les inégalités initiales dans le résultat
+        Set<LinearInequality> result = new HashSet<>(inequalities);
+        // Étape 1: Supprimer les inégalités redondantes (même coefficient, constante différente)
+        Map<String, LinearInequality> coeffToIneq = new HashMap<>();
+        // Regrouper par coefficients et garder seulement l'inégalité la plus restrictive
+        // exemple si tu sais que x <= 5 et x <= 10, tu gardes x <= 5 
+        for (LinearInequality ineq : result) {
+            // Créer une clé représentant la structure des coefficients
+            StringBuilder keyBuilder = new StringBuilder();
+            for (Map.Entry<Identifier, Double> entry : ineq.coefficients.entrySet()) {
+                keyBuilder.append(entry.getKey().getName())
+                        .append(":")
+                        .append(entry.getValue())
+                        .append(";");
+            }
+            String key = keyBuilder.toString();
+            // Conserver seulement l'inégalité avec la plus grande constante
+            if (!coeffToIneq.containsKey(key) || coeffToIneq.get(key).constant <= ineq.constant) {
+                coeffToIneq.put(key, ineq);
+            }
+        }
+        return new HashSet<>(coeffToIneq.values());
+    }
     public TwoVariablesInequality smallStepSemantics(ValueExpression valueExpression, ProgramPoint programPoint, SemanticOracle semanticOracle) throws SemanticException {
         // Handle different types of expressions
         return this;
@@ -259,7 +384,7 @@ public class TwoVariablesInequality
         Set<LinearInequality> unionInequalities = new HashSet<>(this.inequalities);
         unionInequalities.addAll(other.inequalities);
         
-        return new TwoVariablesInequality(unionInequalities);
+        return new TwoVariablesInequality(closure(removeDuplicates(unionInequalities)));
     }
     @Override
     public TwoVariablesInequality glb(TwoVariablesInequality other) throws SemanticException {
@@ -268,7 +393,7 @@ public class TwoVariablesInequality
         if (isBottom() || other.isBottom()) return BOTTOM;
         Set<LinearInequality> result = new HashSet<>(this.inequalities);
         result.addAll(other.inequalities);
-        return new TwoVariablesInequality(result);
+        return new TwoVariablesInequality(glbLinearInequality(removeDuplicates(result)));
     }
 
     
@@ -327,6 +452,9 @@ public class TwoVariablesInequality
         }
         public void setLessOrEqual(boolean lessOrEqual) {
             this.lessOrEqual = lessOrEqual;
+        }
+        public boolean isEqualCoefficients(LinearInequality other) {
+            return this.coefficients.equals(other.coefficients);
         }
 
         /**
