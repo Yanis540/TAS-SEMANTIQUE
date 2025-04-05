@@ -144,15 +144,15 @@ public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns
 			SemanticOracle oracle) throws SemanticException {
 
         if(operator instanceof ComparisonLe){
-            if(left instanceof Variable ){
+            if(left instanceof Variable && right instanceof Constant) {
                 Variable x = (Variable) left;
                 ExtendedSigns xValue = environment.getState(x);
                 ExtendedSigns yValue = eval(right,environment,src,oracle);
-                System.err.println("xValue: " + xValue.representation() + " yValue: " + yValue);
+                System.err.println("xValue: " + xValue.representation() + " yValue: " + yValue.representation());
                 if(xValue.isTop()) 
                     return environment;
-                System.err.println("Assuming x to be negative");
-                return environment.putState(x,inverseLeftSign(xValue, yValue));
+                System.err.println("Assuming x to be  "+xValue.lubAux(yValue).representation());
+                return environment.putState(x,xValue.lubAux(yValue));
             }
         }
         return BaseNonRelationalValueDomain.super.assumeBinaryExpression(environment, operator, left, right, src, dest, oracle);

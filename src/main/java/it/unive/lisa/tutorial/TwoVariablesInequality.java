@@ -13,6 +13,7 @@ import it.unive.lisa.analysis.SemanticOracle;
 import it.unive.lisa.analysis.lattices.FunctionalLattice;
 import it.unive.lisa.analysis.lattices.InverseSetLattice;
 import it.unive.lisa.analysis.lattices.Satisfiability;
+import it.unive.lisa.analysis.nonrelational.value.ValueEnvironment;
 import it.unive.lisa.analysis.value.ValueDomain;
 import it.unive.lisa.program.cfg.ProgramPoint;
 import it.unive.lisa.symbolic.SymbolicExpression;
@@ -23,6 +24,7 @@ import it.unive.lisa.symbolic.value.UnaryExpression;
 import it.unive.lisa.symbolic.value.ValueExpression;
 import it.unive.lisa.symbolic.value.operator.AdditionOperator;
 import it.unive.lisa.symbolic.value.operator.MultiplicationOperator;
+import it.unive.lisa.symbolic.value.operator.binary.BinaryOperator;
 import it.unive.lisa.symbolic.value.operator.binary.ComparisonLe;
 import it.unive.lisa.util.datastructures.regex.TopAtom;
 import it.unive.lisa.util.representation.StringRepresentation;
@@ -44,7 +46,7 @@ public class TwoVariablesInequality
     public TwoVariablesInequality(Set<LinearInequality>inequalities) {
         if(inequalities.isEmpty())
             this.top = true;
-        this.inequalities = inequalities;
+        this.inequalities = removeDuplicates(inequalities);
 	}
 
 
@@ -82,7 +84,6 @@ public class TwoVariablesInequality
             return new StringRepresentation("BOTTOM");
         return new StringRepresentation(toString());
     }
-   
     @Override
     public TwoVariablesInequality assume(
         ValueExpression expression,
@@ -116,7 +117,7 @@ public class TwoVariablesInequality
             }
             System.out.println("Assuming: " + inequality.toString());
             System.out.println("Having: " + toString());
-            return new TwoVariablesInequality(res);
+            return new TwoVariablesInequality(closureGlb(res));
         }
         // extract a, x and b from left and c from left 
         if (left instanceof BinaryExpression && right instanceof Constant) {
@@ -143,7 +144,7 @@ public class TwoVariablesInequality
                     System.out.println("Assuming: " + inequality.toString());
                     System.out.println("Having: " + toString());
                     // return bottom();
-                    return new TwoVariablesInequality(res);
+                    return new TwoVariablesInequality(closureGlb(res));
                 } 
                 
                 
@@ -154,7 +155,6 @@ public class TwoVariablesInequality
     public static boolean isSpecialIdentifier(Identifier id) {
         return id.toString().contains("heap") || id.toString().contains("this") || id.toString().contains("&pp@");
     }
-
     public TwoVariablesInequality assign(Identifier identifier, ValueExpression valueExpression, ProgramPoint pp,
         SemanticOracle oracle) throws SemanticException {
         if(isSpecialIdentifier(identifier))
@@ -169,7 +169,7 @@ public class TwoVariablesInequality
             res.add(inequality);
             System.out.println("Assigning: " + inequality.toString());
             System.out.println("Having: " + toString());
-            return new TwoVariablesInequality(res);
+            return new TwoVariablesInequality(closureGlb(res));
         }
         if(valueExpression instanceof BinaryExpression){
             BinaryExpression binaryExpression = (BinaryExpression) valueExpression;
@@ -187,7 +187,7 @@ public class TwoVariablesInequality
                 res.add(inequality);
                 System.out.println("Assigning: " + inequality.toString());
                 System.out.println("Having: " + toString());
-                return new TwoVariablesInequality(closure(removeDuplicates(res)));
+                return new TwoVariablesInequality(closureGlb(res));
             }
             // handle the case of x = b*y + c
             if(binaryExpression.getOperator() instanceof AdditionOperator &&  binaryExpression.getRight() instanceof Constant){
@@ -207,7 +207,7 @@ public class TwoVariablesInequality
                         res.add(inequality);
                         System.out.println("Assigning: " + inequality.toString());
                         System.out.println("Having: " + toString());
-                        return new TwoVariablesInequality(closure(removeDuplicates(res)));
+                        return new TwoVariablesInequality(closureGlb(res));
                     }
                 }
                 
@@ -230,12 +230,18 @@ public class TwoVariablesInequality
                 }
             }
             if (!isEquivalent) {
+                if(inequality.coefficients.size() == 0 
+                || (inequality.coefficients.size() == 1 && inequality.coefficients.values().
+                        stream().anyMatch(v -> v == 0.0))) {
+                    // Skip the inequality if it has a coefficient of  in format 0x <= c
+                    continue;
+                }
                 result.add(inequality);
             }
         }
         return result;
     }
-    public Set<LinearInequality> closure(Set<LinearInequality> inequalities) {
+    public Set<LinearInequality> closureLub(Set<LinearInequality> inequalities) {
         // Copier les inégalités initiales dans le résultat
         Set<LinearInequality> result = new HashSet<>(inequalities);
         // Étape 1: Supprimer les inégalités redondantes (même coefficient, constante différente)
@@ -331,7 +337,7 @@ public class TwoVariablesInequality
             }
             String key = keyBuilder.toString();
             // Conserver seulement l'inégalité avec la plus grande constante
-            if (!coeffToIneq.containsKey(key) || coeffToIneq.get(key).constant > ineq.constant) {
+            if (!coeffToIneq.containsKey(key) || coeffToIneq.get(key).constant <= ineq.constant) {
                 coeffToIneq.put(key, ineq);
             }
         }
@@ -355,7 +361,7 @@ public class TwoVariablesInequality
             }
             String key = keyBuilder.toString();
             // Conserver seulement l'inégalité avec la plus grande constante
-            if (!coeffToIneq.containsKey(key) || coeffToIneq.get(key).constant <= ineq.constant) {
+            if (!coeffToIneq.containsKey(key) || coeffToIneq.get(key).constant > ineq.constant) {
                 coeffToIneq.put(key, ineq);
             }
         }
@@ -383,8 +389,8 @@ public class TwoVariablesInequality
          // Créer un nouvel ensemble qui est l'union des deux ensembles d'inégalités
         Set<LinearInequality> unionInequalities = new HashSet<>(this.inequalities);
         unionInequalities.addAll(other.inequalities);
-        
-        return new TwoVariablesInequality(closure(removeDuplicates(unionInequalities)));
+        var l = new TwoVariablesInequality(closureLub(removeDuplicates(unionInequalities)));
+        return l;
     }
     @Override
     public TwoVariablesInequality glb(TwoVariablesInequality other) throws SemanticException {
@@ -393,7 +399,7 @@ public class TwoVariablesInequality
         if (isBottom() || other.isBottom()) return BOTTOM;
         Set<LinearInequality> result = new HashSet<>(this.inequalities);
         result.addAll(other.inequalities);
-        return new TwoVariablesInequality(glbLinearInequality(removeDuplicates(result)));
+        return new TwoVariablesInequality(closureGlb(removeDuplicates(result)));
     }
 
     
