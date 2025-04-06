@@ -108,6 +108,7 @@ Permet d'assumer les conditionnels et de générer les équations lors des entr�
 -  **a*x+b*y <=c**
 ### `assign()` 
 Permet de génrer les équations lors de l'assignation notamment : 
+-   **x=c** : génrera une équation sous la forme de : `x<=c`
 -   **x=y** : génrera une équation sous la forme de : `x-y<=0`
 -   **x=y+c** : génrera une équation sous la forme de : `x-y<=c`
 -   **x=b*y+c** : génrera une équation sous la forme de : `x - b*y<=c`

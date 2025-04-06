@@ -1,8 +1,11 @@
 package it.unive.lisa.tutorial;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -171,6 +174,17 @@ public class TwoVariablesInequality
             System.out.println("Having: " + toString());
             return new TwoVariablesInequality(closureGlb(res));
         }
+        if(valueExpression instanceof Constant){
+            Constant c = (Constant) valueExpression;
+            Map<Identifier, Double> coefficients = new HashMap<>();
+            coefficients.put(identifier, 1.0);
+            LinearInequality inequality = new LinearInequality(coefficients, (Integer)(c.getValue()));
+            Set<LinearInequality> res = new HashSet<>(this.inequalities);
+            res.add(inequality);
+            System.out.println("Assigning: " + inequality.toString());
+            System.out.println("Having: " + toString());
+            return new TwoVariablesInequality(closureGlb(res));
+        }
         if(valueExpression instanceof BinaryExpression){
             BinaryExpression binaryExpression = (BinaryExpression) valueExpression;
             // On veut que la forme soit x = y + c 
@@ -276,10 +290,9 @@ public class TwoVariablesInequality
                     for (Identifier commonVar : commonVars) {
                         Double coef1 = ineq1.coefficients.get(commonVar);
                         Double coef2 = ineq2.coefficients.get(commonVar);
-                        boolean hasSameCoefficient = Math.abs(coef1)==Math.abs(coef2); 
                         boolean hasDifferentSign = coef1 * coef2 < 0;
                         // Vérifier si les coefficients ont le même signe
-                        if (hasSameCoefficient &&hasDifferentSign ) {
+                        if (hasDifferentSign ) {
                             // Créer une nouvelle inégalité combinée
                             Map<Identifier, Double> newCoeffs = new HashMap<>();
                             double scale1 = Math.abs(coef2);
@@ -462,7 +475,7 @@ public class TwoVariablesInequality
         public boolean isEqualCoefficients(LinearInequality other) {
             return this.coefficients.equals(other.coefficients);
         }
-
+      
         /**
          * Implémente la fonction var(ax + by ≤ c) comme définie dans l'article
          */
