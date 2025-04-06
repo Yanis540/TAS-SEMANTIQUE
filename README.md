@@ -93,7 +93,7 @@ Si on prenait plutôt `min(c, d)` comme résultat du LUB, alors dans le bloc st2
     }
     st2;
 ```
-l'équation sera ajouté par exemple pour indiquer qu'il se peut qu'elle soit juste, on fait une analyse abstraite approché et pas précise donc vaut mieux sauvegarder cette information (elle sera sauvegardé juste dans le chemin d'analyse ou la condition est vérifié)
+l'équation sera ajouté par exemple pour indiquer qu'il se peut qu'elle soit juste, on fait une analyse abstraite approché et pas précise donc vaut mieux sauvegarder cette information
 
 ### `glb()` – *Greatest Lower Bound*
 - Calcule la **plus grande sous-approximation**.Cette fonction fait appelle à la fonction closureGlb pour gérer les états transitive et éliminer les redunduncy
@@ -112,4 +112,6 @@ Permet de génrer les équations lors de l'assignation notamment :
 -   **x=y+c** : génrera une équation sous la forme de : `x-y<=c`
 -   **x=b*y+c** : génrera une équation sous la forme de : `x - b*y<=c`
 
+# Produit Cartésien 
+Pour celà, nous avons utilisé le produit cartesian qu'on a étendu directement de la classe prédéfini 
 

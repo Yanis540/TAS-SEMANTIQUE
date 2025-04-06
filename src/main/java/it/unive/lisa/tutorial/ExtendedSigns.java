@@ -22,14 +22,14 @@ import it.unive.lisa.util.representation.StructuredRepresentation;
 
 public class ExtendedSigns implements BaseNonRelationalValueDomain<ExtendedSigns> {
 
-    private static final ExtendedSigns BOTTOM = new ExtendedSigns(Integer.MIN_VALUE);
-    private static final ExtendedSigns NEGATIVE = new ExtendedSigns(-2);
-    private static final ExtendedSigns STRICTLY_NEGATIVE = new ExtendedSigns(-1);
-    private static final ExtendedSigns ZERO = new ExtendedSigns(0);
-    private static final ExtendedSigns STRICTLY_POSITIVE = new ExtendedSigns(1);
-    private static final ExtendedSigns NON_ZERO = new ExtendedSigns(2);
-    private static final ExtendedSigns POSITIVE = new ExtendedSigns(3);
-    private static final ExtendedSigns TOP = new ExtendedSigns(Integer.MAX_VALUE);
+    public static final ExtendedSigns BOTTOM = new ExtendedSigns(Integer.MIN_VALUE);
+    public static final ExtendedSigns NEGATIVE = new ExtendedSigns(-2);
+    public static final ExtendedSigns STRICTLY_NEGATIVE = new ExtendedSigns(-1);
+    public static final ExtendedSigns ZERO = new ExtendedSigns(0);
+    public static final ExtendedSigns STRICTLY_POSITIVE = new ExtendedSigns(1);
+    public static final ExtendedSigns NON_ZERO = new ExtendedSigns(2);
+    public static final ExtendedSigns POSITIVE = new ExtendedSigns(3);
+    public static final ExtendedSigns TOP = new ExtendedSigns(Integer.MAX_VALUE);
     public int sign;
     public int value; 
     public ExtendedSigns() {

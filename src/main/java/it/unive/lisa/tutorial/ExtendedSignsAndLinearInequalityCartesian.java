@@ -1,5 +1,8 @@
 package it.unive.lisa.tutorial;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import it.unive.lisa.analysis.combination.CartesianProduct;
 import it.unive.lisa.analysis.nonrelational.value.ValueEnvironment;
 import it.unive.lisa.analysis.value.ValueDomain;
