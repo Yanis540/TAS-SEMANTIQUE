@@ -112,6 +112,15 @@ Permet de génrer les équations lors de l'assignation notamment :
 -   **x=y** : génrera une équation sous la forme de : `x-y<=0`
 -   **x=y+c** : génrera une équation sous la forme de : `x-y<=c`
 -   **x=b*y+c** : génrera une équation sous la forme de : `x - b*y<=c`
+### `clousre()` 
+
+Nous avons implémenté les closures grâce à : 
+-   `transitivity` : la fonction qui permet génère les équations transitives depuis l'ensemble des équations, par exemple : 
+    
+    `ax - by <= c` et `ez + by <= d` => `ax + ez <= c+d`   
+    
+-   `removeDuplicate` : Permet d'éliminer les équations redondantes 
+    
 
 # Produit Cartésien 
 Pour celà, nous avons utilisé le produit cartesian qu'on a étendu directement de la classe prédéfini 
